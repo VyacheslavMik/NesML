@@ -34,8 +34,8 @@ def makeModel():
     model.add(Flatten())
     model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(8))
-    model.add(Activation('linear'))
+    model.add(Dense(10, activation='sigmoid'))
+    model.add(Dense(8, activation='linear'))
     model.compile(loss='mse', optimizer='adam', metrics=['mae'])
     return model
 
@@ -61,25 +61,29 @@ def normalize(a):
     return map(lambda x: 49 if (x > 0) else 48, a)
 
 def step(state):
-    if (state == 0):
+    if (state == 0):            # Playing
         return 0, False
-    elif (state == 2):
-        return -1000, False
-    elif (state == 3):
-        print('Moving')
+    elif (state == 1):          # Dead
+        return -10, False
+    elif (state == 2):          # Paused
+        return -2, False
+    elif (state == 3):          # MovingForward
+        return 1, False
+    elif (state == 4):          # MovingBackward
+        return -1, False
+    elif (state == 5):          # PickupLive
+        return 5, False
+    elif (state == 6):          # PickupLetter
+        return 5, False
+    elif (state == 7):          # PickupStaff
+        return 3, False
+    elif (state == 8):          # NextLevel
         return 10, False
-    elif (state == 4):
-        print('PickUpLetter')
-        return 50, False
-    elif (state == 5):
-        print('PickUpStaff')
-        return 25, False
     else:
-        print('other')
-        return -1000, False
+        return10, False
 
-y = 0.95
-eps = 0.1 #0.5
+y =           0.95
+eps =         0.5
 decayFactor = 0.999
 
 # decay epsilon for consecutive episodes
@@ -87,6 +91,7 @@ decayFactor = 0.999
 # eps *= decay_factor
 trainCountBeforeDecay = 0
 def train(state, new_s, s):
+    print('---------')
     global eps
     global trainCountBeforeDecay
 
@@ -96,16 +101,22 @@ def train(state, new_s, s):
     else:
         a = model.predict(s)[0]
 
-    if trainCountBeforeDecay == 100:
-        eps *= decayFactor
-        trainCountBeforeDecay = 0
+    a[7] = 0
 
-    trainCountBeforeDecay += 1
+    # if trainCountBeforeDecay == 100:
+    eps *= decayFactor
+    # trainCountBeforeDecay = 0
+
+    # trainCountBeforeDecay += 1
 
     r, done = step(state)
-    target_vec = model.predict(new_s)
-    fn = np.vectorize(lambda x: r + y * x)
-    target_vec = fn(target_vec)
+    target_vec_new = model.predict(new_s)[0]
+    target_vec = np.copy(a)
+    print(target_vec)
+    for i in range(8):
+        if (target_vec[i] > 0):
+            target_vec[i] = r + y * target_vec_new[i]
+    print(target_vec)
     model.fit(s, target_vec.reshape(-1, 8), epochs=1, verbose=0)
 
     return a

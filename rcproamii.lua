@@ -1,4 +1,4 @@
--- fceux --loadlua /Users/vyacheslavmikushev/Work/rcproamii.lua /Users/vyacheslavmikushev/Downloads/R.C.\ Pro-Am\ 2/R.C.\ Pro-Am\ 2\ \(U\)\ \[\!p\].nes
+-- fceux --loadlua /Users/vyacheslavmikushev/Work/NesML/rcproamii.lua /Users/vyacheslavmikushev/Downloads/R.C.\ Pro-Am\ 2/R.C.\ Pro-Am\ 2\ \(U\)\ \[\!p\].nes
 
 emu.speedmode("normal")
 
@@ -81,62 +81,83 @@ end
 -- 1887 (0x075F) - second part of money (significant)
 -- 1953 (0x07A1) - letters for car upgrade
 -- 1905 (0x0771) - lives
--- 1765 (0x06E5) - moves
+-- 1364 (0x0554) - total position
+-- 1872 (0x0750) - level
 -- 1526 (0x05F6) - money, stars and other staff in race
 
-states = {Playing      = "00",
-	  Dead         = "01",
-	  Paused       = "02",
-	  Moving       = "03",
-	  PickupLetter = "04",
-	  PickupStaff  = "05"}
+states = {Playing        = "00",
+	  Dead           = "01",
+	  Paused         = "02",
+	  MovingForward  = "03",
+	  MovingBackward = "04",
+	  PickupLive     = "05",
+	  PickupLetter   = "06",
+	  PickupStaff    = "07",
+	  NextLevel      = "08"}
 
-function isPaused()
-   return memory.readbyte(1092) == 1
-end
-
-function isMoving()
-   return memory.readbyte(1765) == 64
-end
-
-staffValue = 0
-function isPickUpStaff()
-   local curr = memory.readbyte(1526)
-   local b = curr > staffValue
-   staffValue = curr
-   return b
+previous = {}
+current =  {}
+function readCurrent()
+   current.IsPaused = memory.readbyte(1092) == 1
+   current.Money1   = memory.readbyte(1883)
+   current.Money2   = memory.readbyte(1887)
+   current.Letter   = memory.readbyte(1953)
+   current.Lives    = memory.readbyte(1905)
+   current.Position = memory.readbyte(1364)
+   current.Level    = memory.readbyte(1827)
+   current.Staff    = memory.readbyte(1526)
 end
 
 function getState()
-   if (isPickUpStaff()) then
-      return states.PickupStaff
-   elseif (isMoving()) then
-      return states.Moving
-   elseif (isPaused()) then
-      return states.Paused
-   else
-      return states.Playing
+   readCurrent()
+   state = states.Playing
+   if (previous ~= {}) then
+      if (current.IsPaused) then
+	 state = states.Paused
+      elseif (current.Level > previous.Level) then
+	 current.Position = 0
+	 current.Staff = 0
+	 state = states.NextLevel
+      elseif (current.Lives > previous.Lives) then
+	 state = states.PickupLive
+      elseif (current.Staff > previous.Staff) then
+	 state = states.PickupStaff
+      elseif (current.Position > previous.Position) then
+	 state = states.MovingForward
+      elseif (curretn.Position < previous.Position) then
+	 state = states.MovingBackward
+      end
    end
+
+   previous = current
+   return state
 end
 
 frame = 0
+started = false
 
 while true do
-   if (frame == 0) then
-      send(gui.gdscreenshot(), getState())
-   end
+   if (started) then
+      if (frame == 0) then
+	 send(gui.gdscreenshot(), getState())
+      end
 
-   if (frame == 30) then
-      a = receive()
-      -- joypad.set(1, a)
-      frame = -1
-   end
+      if (frame == 30) then
+	 a = receive()
+	 frame = -1
+      end
 
-   if (a) then
-      joypad.set(1, a)
-   end
+      if (a) then
+	 joypad.set(1, a)
+      end
 
-   frame = frame + 1
+      frame = frame + 1
+   else
+      a = joypad.get(1)
+      if (a.select) then
+	 started = true
+      end
+   end
 
    emu.frameadvance()
 end
