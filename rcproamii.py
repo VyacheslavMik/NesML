@@ -62,23 +62,35 @@ def normalize(a):
 
 def step(state):
     if (state == 0):            # Playing
+        # print('Playing')
         return 0, False
     elif (state == 1):          # Dead
+        print('Dead')
         return -10, False
     elif (state == 2):          # Paused
-        return -2, False
+        print('Paused')
+        return -5, False
     elif (state == 3):          # MovingForward
+        print('MovingForward')
         return 1, False
     elif (state == 4):          # MovingBackward
-        return -1, False
+        print('MovingBackward')
+        return -2, False
     elif (state == 5):          # PickupLive
+        print('PickupLive')
         return 5, False
     elif (state == 6):          # PickupLetter
+        print('PickupLetter')
         return 5, False
     elif (state == 7):          # PickupStaff
+        print('PickupStaff')
         return 3, False
     elif (state == 8):          # NextLevel
+        print('NextLevel')
         return 10, False
+    elif (state == 9):          # GameOver
+        print('GameOver')
+        return -50, False
     else:
         return10, False
 
@@ -87,36 +99,52 @@ eps =         0.5
 decayFactor = 0.999
 
 # decay epsilon for consecutive episodes
-# now do not how to do this
+# now do not know how to do this
 # eps *= decay_factor
 trainCountBeforeDecay = 0
+# playingCount = 0
+# pausedCount  = 0
 def train(state, new_s, s):
-    print('---------')
+    # print('---------')
     global eps
     global trainCountBeforeDecay
+    # global playingCount
+    # global pausedCount
+
+    # if (state == 0):
+    #     playingCount += 1
+    # elif (state == 2):
+    #     pausedCount += 1
 
     if np.random.random() < eps:
-        print('random')
+    # if (playingCount == 6):
+        print('Random')
+        # playingCount = 0
         a = np.random.randint(0, 2, 8)
+    # elif (pausedCount == 6):
+    #     pausedCount = 0
+    #     a = np.array([0, 0, 0, 0, 0, 0, 0, 1])
     else:
         a = model.predict(s)[0]
 
-    a[7] = 0
+    # a[7] = 0
 
-    # if trainCountBeforeDecay == 100:
-    eps *= decayFactor
-    # trainCountBeforeDecay = 0
+    # a = model.predict(s)[0]
 
-    # trainCountBeforeDecay += 1
+    if trainCountBeforeDecay == 100:
+        eps *= decayFactor
+        trainCountBeforeDecay = 0
+
+    trainCountBeforeDecay += 1
 
     r, done = step(state)
     target_vec_new = model.predict(new_s)[0]
     target_vec = np.copy(a)
-    print(target_vec)
+    # print(target_vec)
     for i in range(8):
         if (target_vec[i] > 0):
             target_vec[i] = r + y * target_vec_new[i]
-    print(target_vec)
+    # print(target_vec)
     model.fit(s, target_vec.reshape(-1, 8), epochs=1, verbose=0)
 
     return a

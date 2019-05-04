@@ -93,11 +93,13 @@ states = {Playing        = "00",
 	  PickupLive     = "05",
 	  PickupLetter   = "06",
 	  PickupStaff    = "07",
-	  NextLevel      = "08"}
+	  NextLevel      = "08",
+	  GameOver       = "09"}
 
 previous = {}
-current =  {}
+current  = {}
 function readCurrent()
+   current = {}
    current.IsPaused = memory.readbyte(1092) == 1
    current.Money1   = memory.readbyte(1883)
    current.Money2   = memory.readbyte(1887)
@@ -111,21 +113,25 @@ end
 function getState()
    readCurrent()
    state = states.Playing
-   if (previous ~= {}) then
+   if (previous.IsPaused ~= nil) then
       if (current.IsPaused) then
 	 state = states.Paused
       elseif (current.Level > previous.Level) then
 	 current.Position = 0
 	 current.Staff = 0
 	 state = states.NextLevel
+      elseif (current.Lives < previous.Lives) then
+	 state = states.Dead
       elseif (current.Lives > previous.Lives) then
 	 state = states.PickupLive
       elseif (current.Staff > previous.Staff) then
 	 state = states.PickupStaff
       elseif (current.Position > previous.Position) then
 	 state = states.MovingForward
-      elseif (curretn.Position < previous.Position) then
+      elseif (current.Position < previous.Position) then
 	 state = states.MovingBackward
+      elseif (current.Money1 == 0 and current.Money2 == 0 and current.Lives == 0) then
+	 state = states.GameOver
       end
    end
 
@@ -142,7 +148,7 @@ while true do
 	 send(gui.gdscreenshot(), getState())
       end
 
-      if (frame == 30) then
+      if (frame == 20) then
 	 a = receive()
 	 frame = -1
       end
